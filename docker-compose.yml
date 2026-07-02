@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: coupon-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: coupon
+      MYSQL_USER: coupon
+      MYSQL_PASSWORD: coupon
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # 측정 원칙: 단계 간 비교를 위해 리소스를 고정한다.
+    # (로컬 절대 수치는 무의미 — 동일 제한 하의 상대 비교만 의미가 있음)
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
+
+volumes:
+  mysql-data:

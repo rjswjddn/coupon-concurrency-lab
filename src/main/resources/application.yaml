@@ -1,3 +1,27 @@
 spring:
   application:
     name: coupon-concurrency-lab
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/coupon?rewriteBatchedStatements=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: coupon
+    password: coupon
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  sql:
+    init:
+      mode: never
+
+logging:
+  level:
+    org.hibernate.SQL: debug
