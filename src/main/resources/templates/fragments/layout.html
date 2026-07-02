@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<body>
+<!-- 공통 네비게이션 바. 사용: <nav th:replace="~{fragments/layout :: navbar('members')}"></nav> -->
+<nav th:fragment="navbar(active)" class="navbar navbar-expand-lg navbar-dark" style="background: #1f2a44;">
+    <div class="container">
+        <a class="navbar-brand" href="/"><i class="bi bi-lightning-charge-fill text-warning"></i> 쿠폰 동시성 랩</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" th:classappend="${active=='home'}?'active fw-semibold':''" href="/">홈</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${active=='members'}?'active fw-semibold':''" href="/members">멤버</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${active=='policies'}?'active fw-semibold':''" href="/policies">쿠폰 정책</a></li>
+                <li class="nav-item"><a class="nav-link" th:classappend="${active=='issue'}?'active fw-semibold':''" href="/issue">쿠폰 발급</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+</body>
+</html>

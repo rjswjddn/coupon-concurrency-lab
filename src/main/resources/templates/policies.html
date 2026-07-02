@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쿠폰 정책 · 쿠폰 동시성 랩</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/css/app.css" rel="stylesheet">
+</head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('policies')}"></nav>
+
+<main class="container my-5">
+    <h3 class="mb-4"><i class="bi bi-ticket-perforated-fill text-success"></i> 쿠폰 정책</h3>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">정책 생성</div>
+                <div class="card-body">
+                    <form id="form">
+                        <div class="mb-3">
+                            <label class="form-label">이름</label>
+                            <input type="text" class="form-control" id="name" placeholder="선착순 100개 1000원 할인" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">할인 방식</label>
+                                <select class="form-select" id="discountType">
+                                    <option value="AMOUNT">정액(원)</option>
+                                    <option value="RATE">정률(%)</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">할인 값</label>
+                                <input type="number" class="form-control" id="discountValue" value="1000" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">선착순 수량(재고)</label>
+                            <input type="number" class="form-control" id="totalQuantity" value="100" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">발급 시작</label>
+                                <input type="datetime-local" class="form-control" id="issueStartAt" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">발급 종료</label>
+                                <input type="datetime-local" class="form-control" id="issueEndAt" required>
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="onePerMember" checked>
+                            <label class="form-check-label" for="onePerMember">1인 1매</label>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">생성</button>
+                    </form>
+                    <div id="createAlert" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">정책 조회 (재고 확인)</div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text">정책 ID</span>
+                        <input type="number" class="form-control" id="lookupId" placeholder="1">
+                        <button class="btn btn-outline-secondary" id="lookupBtn">조회</button>
+                    </div>
+                    <div id="lookupResult"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // 발급 기간 기본값: 시작=지금, 종료=+7일 (datetime-local 포맷)
+    const toLocal = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const now = new Date();
+    document.getElementById('issueStartAt').value = toLocal(now);
+    document.getElementById('issueEndAt').value = toLocal(new Date(now.getTime() + 7 * 864e5));
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const box = document.getElementById('createAlert');
+        box.innerHTML = '';
+        try {
+            const res = await fetch('/api/coupon-policies', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: document.getElementById('name').value,
+                    discountType: document.getElementById('discountType').value,
+                    discountValue: Number(document.getElementById('discountValue').value),
+                    totalQuantity: Number(document.getElementById('totalQuantity').value),
+                    issueStartAt: document.getElementById('issueStartAt').value + ':00',
+                    issueEndAt: document.getElementById('issueEndAt').value + ':00',
+                    onePerMember: document.getElementById('onePerMember').checked
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || '생성 실패');
+            box.innerHTML = `<div class="alert alert-success py-2 mb-0">생성 완료 · 정책 ID <b>${data.id}</b> (재고 ${data.stockQuantity})</div>`;
+            document.getElementById('lookupId').value = data.id;
+        } catch (err) {
+            box.innerHTML = `<div class="alert alert-danger py-2 mb-0">${err.message}</div>`;
+        }
+    });
+
+    async function lookup() {
+        const id = document.getElementById('lookupId').value;
+        const box = document.getElementById('lookupResult');
+        if (!id) return;
+        try {
+            const res = await fetch('/api/coupon-policies/' + id);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || '조회 실패');
+            const used = data.totalQuantity - data.stockQuantity;
+            const pct = data.totalQuantity > 0 ? Math.min(100, Math.max(0, used / data.totalQuantity * 100)) : 0;
+            const oversell = data.stockQuantity < 0;
+            box.innerHTML = `
+                <h5 class="mb-1">${data.name}</h5>
+                <div class="text-muted small mb-2">${data.discountType} ${data.discountValue} · 1인1매 ${data.onePerMember ? 'Y' : 'N'}</div>
+                <div class="d-flex justify-content-between"><span>남은 재고</span>
+                    <span class="stat-num ${oversell ? 'text-danger' : ''}">${data.stockQuantity}</span></div>
+                <div class="progress my-2" style="height:8px;">
+                    <div class="progress-bar ${oversell ? 'bg-danger' : 'bg-success'}" style="width:${pct}%"></div>
+                </div>
+                <div class="small text-muted">발급 ${used} / 총 ${data.totalQuantity}
+                    ${oversell ? '<span class="badge text-bg-danger ms-1">OVERSELL</span>' : ''}</div>`;
+        } catch (err) {
+            box.innerHTML = `<div class="alert alert-danger py-2 mb-0">${err.message}</div>`;
+        }
+    }
+    document.getElementById('lookupBtn').addEventListener('click', lookup);
+</script>
+</body>
+</html>

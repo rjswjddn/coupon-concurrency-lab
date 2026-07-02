@@ -1,0 +1,32 @@
+body { background-color: #f6f8fb; }
+
+.navbar-brand { font-weight: 700; letter-spacing: -0.3px; }
+
+.card {
+    border: none;
+    box-shadow: 0 2px 12px rgba(18, 38, 63, 0.06);
+    border-radius: 14px;
+}
+
+.card-header {
+    background: #fff;
+    border-bottom: 1px solid #eef1f6;
+    font-weight: 600;
+    border-radius: 14px 14px 0 0 !important;
+}
+
+main { max-width: 920px; }
+
+pre.result {
+    background: #0d1117;
+    color: #e6edf3;
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.stat-num { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.hero { background: linear-gradient(135deg, #1f2a44, #2f3f66); color: #fff; border-radius: 16px; }
