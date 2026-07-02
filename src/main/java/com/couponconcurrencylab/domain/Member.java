@@ -1,44 +1,32 @@
 package com.couponconcurrencylab.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import java.time.LocalDateTime;
-import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 /**
  * 발급 주체. 쿠폰을 받아가는 사용자.
+ *
+ * <p>순수 도메인 모델(JPA 무관). 영속성 매핑은 persistence 계층의 엔티티가 담당한다.
  */
-@Entity
-@Table(name = "member")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, length = 50)
-    private String name;
-
-    @Column(nullable = false, length = 100)
-    private String email;
-
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private final Long id;
+    private final String name;
+    private final String email;
 
     @Builder
-    private Member(String name, String email) {
+    private Member(Long id, String name, String email) {
+        this.id = id;
         this.name = name;
         this.email = email;
+    }
+
+    /** 새 멤버를 생성한다(아직 식별자 없음). */
+    public static Member create(String name, String email) {
+        return Member.builder()
+                .name(name)
+                .email(email)
+                .build();
     }
 }

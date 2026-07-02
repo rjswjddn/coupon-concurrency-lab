@@ -1,60 +1,57 @@
 package com.couponconcurrencylab.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 /**
  * 특정 멤버가 실제 발급받은 쿠폰 인스턴스.
+ *
+ * <p>순수 도메인 모델(JPA 무관). 다른 애그리거트(Member, CouponPolicy)는 객체가 아니라
+ * 식별자(memberId, couponPolicyId)로 참조한다.
  */
-@Entity
-@Table(name = "issued_coupon")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class IssuedCoupon {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "coupon_policy_id", nullable = false)
-    private CouponPolicy couponPolicy;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    private final Long id;
+    private final Long memberId;
+    private final Long couponPolicyId;
     private CouponStatus status;
-
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime issuedAt;
-
-    /** 사용 시각. 미사용이면 null. */
-    @Column
+    private final LocalDateTime issuedAt;
     private LocalDateTime usedAt;
 
     @Builder
-    private IssuedCoupon(Member member, CouponPolicy couponPolicy) {
-        this.member = member;
-        this.couponPolicy = couponPolicy;
-        this.status = CouponStatus.ISSUED;
+    private IssuedCoupon(Long id, Long memberId, Long couponPolicyId, CouponStatus status,
+                         LocalDateTime issuedAt, LocalDateTime usedAt) {
+        this.id = id;
+        this.memberId = memberId;
+        this.couponPolicyId = couponPolicyId;
+        this.status = status;
+        this.issuedAt = issuedAt;
+        this.usedAt = usedAt;
+    }
+
+    /** 멤버에게 정책 쿠폰을 발급한 인스턴스를 생성한다. */
+    public static IssuedCoupon issue(Long memberId, Long couponPolicyId, LocalDateTime issuedAt) {
+        return IssuedCoupon.builder()
+                .memberId(memberId)
+                .couponPolicyId(couponPolicyId)
+                .status(CouponStatus.ISSUED)
+                .issuedAt(issuedAt)
+                .build();
+    }
+
+    /** 쿠폰을 사용 처리한다. ISSUED 상태에서만 가능. */
+    public void use(LocalDateTime usedAt) {
+        if (status != CouponStatus.ISSUED) {
+            throw new IllegalStateException("사용할 수 없는 상태입니다. status=" + status);
+        }
+        this.status = CouponStatus.USED;
+        this.usedAt = usedAt;
+    }
+
+    /** 쿠폰을 만료 처리한다. */
+    public void expire() {
+        this.status = CouponStatus.EXPIRED;
     }
 }

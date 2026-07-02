@@ -1,7 +1,0 @@
-package com.couponconcurrencylab.repository;
-
-import com.couponconcurrencylab.domain.Member;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-public interface MemberRepository extends JpaRepository<Member, Long> {
-}

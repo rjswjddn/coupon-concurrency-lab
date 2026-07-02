@@ -1,81 +1,82 @@
 package com.couponconcurrencylab.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * 애그리거트 루트. 쿠폰 발급 규칙을 보유하는, 거의 안 바뀌는 메타데이터.
+ * 애그리거트 루트. 쿠폰 발급 규칙과 재고를 보유한다.
  *
- * <p>재고(stockQuantity)는 이 정책 row 안의 컬럼으로 둔다.
+ * <p>순수 도메인 모델(JPA 무관). 영속성 매핑은 persistence 계층의 엔티티가 담당한다.
  */
-@Entity
-@Table(name = "coupon_policy")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CouponPolicy {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false, length = 100)
-    private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private DiscountType discountType;
-
-    /** 정액이면 할인 금액(원), 정률이면 할인율(%). */
-    @Column(nullable = false)
-    private int discountValue;
-
-    /** 선착순 총 수량. 최초 재고의 기준값(불변). */
-    @Column(nullable = false)
-    private int totalQuantity;
-
-    /** 남은 재고. 발급 시 차감된다. */
-    @Column(nullable = false)
+    private final Long id;
+    private final String name;
+    private final DiscountType discountType;
+    private final int discountValue;
+    private final int totalQuantity;
     private int stockQuantity;
-
-    /** 발급 시작 시각. */
-    @Column(nullable = false)
-    private LocalDateTime issueStartAt;
-
-    /** 발급 종료 시각. */
-    @Column(nullable = false)
-    private LocalDateTime issueEndAt;
-
-    /** 1인 1매 여부. true 면 한 멤버당 하나만 발급 가능. */
-    @Column(nullable = false)
-    private boolean onePerMember;
-
-    @CreationTimestamp
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private final LocalDateTime issueStartAt;
+    private final LocalDateTime issueEndAt;
+    private final boolean onePerMember;
 
     @Builder
-    private CouponPolicy(String name, DiscountType discountType, int discountValue,
-                         int totalQuantity, LocalDateTime issueStartAt, LocalDateTime issueEndAt,
-                         boolean onePerMember) {
+    private CouponPolicy(Long id, String name, DiscountType discountType, int discountValue,
+                         int totalQuantity, int stockQuantity,
+                         LocalDateTime issueStartAt, LocalDateTime issueEndAt, boolean onePerMember) {
+        this.id = id;
         this.name = name;
         this.discountType = discountType;
         this.discountValue = discountValue;
         this.totalQuantity = totalQuantity;
-        this.stockQuantity = totalQuantity; // 최초 재고 = 총 수량
+        this.stockQuantity = stockQuantity;
         this.issueStartAt = issueStartAt;
         this.issueEndAt = issueEndAt;
         this.onePerMember = onePerMember;
+    }
+
+    /** 새 정책을 생성한다. 최초 재고 = 총 수량. */
+    public static CouponPolicy create(String name, DiscountType discountType, int discountValue,
+                                      int totalQuantity, LocalDateTime issueStartAt,
+                                      LocalDateTime issueEndAt, boolean onePerMember) {
+        return CouponPolicy.builder()
+                .name(name)
+                .discountType(discountType)
+                .discountValue(discountValue)
+                .totalQuantity(totalQuantity)
+                .stockQuantity(totalQuantity)
+                .issueStartAt(issueStartAt)
+                .issueEndAt(issueEndAt)
+                .onePerMember(onePerMember)
+                .build();
+    }
+
+    /** now 가 발급 기간(issueStartAt ~ issueEndAt) 안에 있는지. */
+    public boolean isWithinIssuePeriod(LocalDateTime now) {
+        return !now.isBefore(issueStartAt) && !now.isAfter(issueEndAt);
+    }
+
+    /** 남은 재고가 있는지. */
+    public boolean hasStock() {
+        return stockQuantity > 0;
+    }
+
+    /** 재고를 1 차감한다. 재고가 없으면 예외. */
+    public void decreaseStock() {
+        if (!hasStock()) {
+            throw new IllegalStateException("재고가 모두 소진되었습니다. policyId=" + id);
+        }
+        stockQuantity--;
+    }
+
+    /** 원래 가격에 이 정책의 할인을 적용한 최종 가격(0 미만이면 0). */
+    public int applyDiscount(int originalPrice) {
+        int discounted = switch (discountType) {
+            case AMOUNT -> originalPrice - discountValue;
+            case RATE -> originalPrice - (originalPrice * discountValue / 100);
+        };
+        return Math.max(discounted, 0);
     }
 }
