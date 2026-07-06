@@ -25,3 +25,24 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
+# ── 모니터링(관측) 노출 ──────────────────────────────────────
+# 서버 내부 진단용. 판정(TPS/p99/실패율)은 k6가 클라이언트 관점에서 준다.
+# 여기서는 병목의 "위치"를 보기 위한 서버측 메트릭만 연다.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # http.server.requests 를 히스토그램 버킷으로 뽑아야 Prometheus가
+      # p99 를 계산할 수 있다(평균 말고 p99를 본다는 측정 원칙).
+      percentiles-histogram:
+        http.server.requests: true

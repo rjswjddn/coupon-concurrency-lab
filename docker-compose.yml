@@ -28,5 +28,57 @@ services:
           cpus: "2.0"
           memory: 1g
 
+  # ── 모니터링 스택 ──────────────────────────────────────────
+  # 주의: 측정 대상(SUT)은 host에서 도는 앱 + 리소스 고정된 MySQL 이다.
+  # 아래 컨테이너들은 "관측자"일 뿐이라 리소스 제한을 걸지 않는다.
+  # (측정 대상의 CPU/메모리를 뺏으면 상대 비교가 오염됨)
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: coupon-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      # 버스트 부하가 짧다(수십 초). 오래 보관할 필요 없음.
+      - '--storage.tsdb.retention.time=6h'
+    extra_hosts:
+      # host에서 도는 앱(:8080)을 컨테이너에서 스크레이프하기 위함
+      - "host.docker.internal:host-gateway"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: coupon-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"   # 대시보드 바로 보기(로컬 학습용)
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: coupon-mysqld-exporter
+    command:
+      - '--config.my-cnf=/cfg/.my.cnf'
+      - '--collect.info_schema.innodb_metrics'   # 3~4단계 row-lock 진단용
+    ports:
+      - "9104:9104"
+    volumes:
+      - ./monitoring/mysql-exporter/.my.cnf:/cfg/.my.cnf:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 volumes:
   mysql-data:
+  grafana-data:
