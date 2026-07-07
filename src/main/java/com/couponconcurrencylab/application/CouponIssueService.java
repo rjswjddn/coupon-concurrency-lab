@@ -44,4 +44,24 @@ public class CouponIssueService {
         IssuedCoupon issued = IssuedCoupon.issue(memberId, policyId, now);
         return issuedCouponRepository.save(issued);
     }
+
+    /**
+     * 정책 하나의 발급 현황.
+     *
+     * @param issuedCount 실제 발급된 쿠폰 행 수 (재고 카운터에서 파생한 값이 아니라 count 집계)
+     * @param duplicateIssuedCount 같은 멤버에게 2매 이상 발급된 초과분 합계
+     */
+    public record IssueStats(CouponPolicy policy, long issuedCount, long duplicateIssuedCount) {
+    }
+
+    @Transactional(readOnly = true)
+    public IssueStats stats(Long policyId) {
+        CouponPolicy policy = couponPolicyRepository.findById(policyId)
+                .orElseThrow(() -> new IllegalArgumentException("쿠폰 정책이 없습니다. policyId=" + policyId));
+
+        IssuedCouponRepository.IssueAggregate aggregate = issuedCouponRepository.aggregateByPolicyId(policyId);
+        // 전체 발급 행 수 - 발급받은 멤버 수 = 1인 1매를 넘긴 초과 발급분
+        long duplicated = aggregate.totalCount() - aggregate.memberCount();
+        return new IssueStats(policy, aggregate.totalCount(), duplicated);
+    }
 }

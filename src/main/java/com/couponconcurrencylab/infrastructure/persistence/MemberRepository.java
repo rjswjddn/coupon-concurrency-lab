@@ -3,6 +3,8 @@ package com.couponconcurrencylab.infrastructure.persistence;
 import com.couponconcurrencylab.domain.Member;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -20,5 +22,9 @@ public class MemberRepository {
 
     public Optional<Member> findById(Long id) {
         return jpaRepository.findById(id).map(MemberMapper::toDomain);
+    }
+
+    public Page<Member> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable).map(MemberMapper::toDomain);
     }
 }

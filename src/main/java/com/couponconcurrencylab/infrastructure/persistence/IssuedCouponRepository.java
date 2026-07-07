@@ -1,7 +1,10 @@
 package com.couponconcurrencylab.infrastructure.persistence;
 
 import com.couponconcurrencylab.domain.IssuedCoupon;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -24,5 +27,25 @@ public class IssuedCouponRepository {
 
     public Boolean existsByCouponPolicyIdAndMemberId(Long couponPolicyId, Long memberId) {
         return jpaRepository.existsByCouponPolicyIdAndMemberId(couponPolicyId, memberId);
+    }
+
+    /** 정책 하나의 발급 현황 집계(전체 발급 행 수 / 발급받은 멤버 수). */
+    public record IssueAggregate(long totalCount, long memberCount) {
+    }
+
+    public IssueAggregate aggregateByPolicyId(Long couponPolicyId) {
+        IssuedCouponJpaRepository.IssueAggregate result = jpaRepository.aggregateByPolicyId(couponPolicyId);
+        return new IssueAggregate(result.getTotalCount(), result.getMemberCount());
+    }
+
+    /** 여러 정책의 실제 발급 행 수. key=정책 ID, value=발급 행 수(없으면 미포함). */
+    public Map<Long, Long> countByPolicyIds(Collection<Long> couponPolicyIds) {
+        if (couponPolicyIds.isEmpty()) {
+            return Map.of();
+        }
+        return jpaRepository.countByPolicyIds(couponPolicyIds).stream()
+                .collect(Collectors.toMap(
+                        IssuedCouponJpaRepository.PolicyIssuedCount::getPolicyId,
+                        IssuedCouponJpaRepository.PolicyIssuedCount::getIssuedCount));
     }
 }

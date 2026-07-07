@@ -1,8 +1,11 @@
 package com.couponconcurrencylab.infrastructure.persistence;
 
 import com.couponconcurrencylab.domain.CouponPolicy;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -20,5 +23,10 @@ public class CouponPolicyRepository {
 
     public Optional<CouponPolicy> findById(Long id) {
         return jpaRepository.findById(id).map(CouponPolicyMapper::toDomain);
+    }
+
+    /** 이름 키워드 + 발급 기간 상태(ALL/ACTIVE/UPCOMING/ENDED)로 검색한다. */
+    public Page<CouponPolicy> search(String keyword, String status, LocalDateTime now, Pageable pageable) {
+        return jpaRepository.search(keyword, status, now, pageable).map(CouponPolicyMapper::toDomain);
     }
 }
