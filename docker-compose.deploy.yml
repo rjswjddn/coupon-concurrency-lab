@@ -1,0 +1,98 @@
+# ── 원격 배포 전용 compose ────────────────────────────────────
+# 로컬 학습용 docker-compose.yml 은 그대로 두고(app=host, 측정용),
+# 배포에서는 app 까지 컨테이너로 올린다.
+# 8080 은 서버에서 이미 사용 중이므로 app 은 8090 으로 노출한다.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coupon-app
+    ports:
+      - "8090:8080"
+    environment:
+      # 컨테이너 네트워크 안에서 mysql 서비스로 접속
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/coupon?rewriteBatchedStatements=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: coupon
+      SPRING_DATASOURCE_PASSWORD: coupon
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: coupon-mysql
+    # 배포에서는 DB를 host로 노출하지 않는다(app 컨테이너만 내부망으로 접속).
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: coupon
+      MYSQL_USER: coupon
+      MYSQL_PASSWORD: coupon
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # 측정 원칙: 단계 간 비교를 위해 리소스를 고정한다.
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
+
+  # ── 모니터링 스택 ──────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: coupon-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.deploy.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=6h'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: coupon-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: coupon-mysqld-exporter
+    command:
+      - '--config.my-cnf=/cfg/.my.cnf'
+      - '--collect.info_schema.innodb_metrics'
+    ports:
+      - "9104:9104"
+    volumes:
+      - ./monitoring/mysql-exporter/.my.cnf:/cfg/.my.cnf:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  grafana-data:

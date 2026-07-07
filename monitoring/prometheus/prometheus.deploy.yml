@@ -1,0 +1,16 @@
+# 배포용 prometheus 설정.
+# 로컬(prometheus.yml)은 host의 앱(host.docker.internal:8080)을 긁지만,
+# 배포에서는 앱도 컨테이너(app:8080)라 타깃만 바꾼다.
+global:
+  scrape_interval: 1s
+  evaluation_interval: 1s
+
+scrape_configs:
+  - job_name: 'coupon-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['app:8080']
+
+  - job_name: 'mysqld'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']
