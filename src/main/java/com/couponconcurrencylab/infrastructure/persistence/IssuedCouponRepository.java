@@ -21,4 +21,8 @@ public class IssuedCouponRepository {
     public Optional<IssuedCoupon> findById(Long id) {
         return jpaRepository.findById(id).map(IssuedCouponMapper::toDomain);
     }
+
+    public Boolean existsByCouponPolicyIdAndMemberId(Long couponPolicyId, Long memberId) {
+        return jpaRepository.existsByCouponPolicyIdAndMemberId(couponPolicyId, memberId);
+    }
 }
