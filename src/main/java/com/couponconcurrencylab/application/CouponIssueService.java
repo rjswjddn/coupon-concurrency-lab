@@ -6,11 +6,13 @@ import com.couponconcurrencylab.infrastructure.persistence.CouponPolicyRepositor
 import com.couponconcurrencylab.infrastructure.persistence.IssuedCouponRepository;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CouponIssueService {
@@ -28,7 +30,7 @@ public class CouponIssueService {
      */
     @Transactional
     public IssuedCoupon issue(Long policyId, Long memberId) {
-        CouponPolicy policy = couponPolicyRepository.findById(policyId)
+        CouponPolicy policy = couponPolicyRepository.findByIdWithLock(policyId)
                 .orElseThrow(() -> new IllegalArgumentException("쿠폰 정책이 없습니다. policyId=" + policyId));
 
         LocalDateTime now = LocalDateTime.now();
@@ -40,7 +42,9 @@ public class CouponIssueService {
             throw new IllegalStateException("이미 쿠폰을 발급 받았습니다. policyId=" + policyId + ", memberId=" + memberId);
         }
 
+        log.info("@@@@@@@@@@@@@@@@@@@@@ 남은 재고 : {}", policy.getStockQuantity());
         policy.decreaseStock();
+        log.info("@@@@@@@@@@@@@@@@@@@@@ 차감한 재고 : {}", policy.getStockQuantity());
         couponPolicyRepository.save(policy);
 
         IssuedCoupon issued = IssuedCoupon.issue(memberId, policyId, now);

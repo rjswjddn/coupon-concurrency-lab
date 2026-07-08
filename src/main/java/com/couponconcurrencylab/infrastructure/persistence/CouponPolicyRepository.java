@@ -29,4 +29,8 @@ public class CouponPolicyRepository {
     public Page<CouponPolicy> search(String keyword, String status, LocalDateTime now, Pageable pageable) {
         return jpaRepository.search(keyword, status, now, pageable).map(CouponPolicyMapper::toDomain);
     }
+
+    public Optional<CouponPolicy> findByIdWithLock(Long id) {
+        return jpaRepository.findByIdWithLock(id).map(CouponPolicyMapper::toDomain);
+    }
 }
