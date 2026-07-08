@@ -6,6 +6,8 @@ import com.couponconcurrencylab.infrastructure.persistence.CouponPolicyRepositor
 import com.couponconcurrencylab.infrastructure.persistence.IssuedCouponRepository;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +44,12 @@ public class CouponIssueService {
         couponPolicyRepository.save(policy);
 
         IssuedCoupon issued = IssuedCoupon.issue(memberId, policyId, now);
-        return issuedCouponRepository.save(issued);
+
+        try {
+            return issuedCouponRepository.save(issued);
+        } catch (DataIntegrityViolationException dve) {
+            throw new IllegalStateException("이미 쿠폰을 발급 받았습니다. policyId=" + policyId + ", memberId=" + memberId + "\n" + dve.getMessage(), dve);
+        }
     }
 
     /**

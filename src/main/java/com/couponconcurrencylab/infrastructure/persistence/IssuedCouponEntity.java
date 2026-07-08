@@ -1,14 +1,8 @@
 package com.couponconcurrencylab.infrastructure.persistence;
 
 import com.couponconcurrencylab.domain.CouponStatus;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -21,7 +15,15 @@ import lombok.NoArgsConstructor;
  * <p>다른 애그리거트는 FK 컬럼(member_id, coupon_policy_id)으로만 참조한다.
  */
 @Entity
-@Table(name = "issued_coupon")
+@Table(
+        name = "issued_coupon",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "UK_DUPLICATED_COUPON_POLICY",
+                        columnNames = {"member_id", "coupon_policy_id"}
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class IssuedCouponEntity {
