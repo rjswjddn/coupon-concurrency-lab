@@ -28,7 +28,7 @@ public class CouponIssueService {
      */
     @Transactional
     public IssuedCoupon issue(Long policyId, Long memberId) {
-        CouponPolicy policy = couponPolicyRepository.findById(policyId)
+        CouponPolicy policy = couponPolicyRepository.findByIdWithLock(policyId)
                 .orElseThrow(() -> new IllegalArgumentException("쿠폰 정책이 없습니다. policyId=" + policyId));
 
         LocalDateTime now = LocalDateTime.now();
