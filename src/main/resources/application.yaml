@@ -22,6 +22,12 @@ spring:
     init:
       mode: never
 
+# Tomcat 스레드풀 MBean 을 노출해 tomcat_threads_*(busy/current/max) 메트릭을 수집한다.
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+
 logging:
   level:
     org.hibernate.SQL: debug
