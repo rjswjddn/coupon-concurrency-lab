@@ -13,9 +13,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    properties:
-      hibernate:
-        format_sql: true
+#    properties:
+#      hibernate:
+#        format_sql: true
     open-in-view: false
 
   sql:
@@ -28,14 +28,18 @@ server:
     mbeanregistry:
       enabled: true
 
-logging:
-  level:
-    org.hibernate.SQL: debug
+#logging:
+#  level:
+#    org.hibernate.SQL: debug
 
 # ── 모니터링(관측) 노출 ──────────────────────────────────────
 # 서버 내부 진단용. 판정(TPS/p99/실패율)은 k6가 클라이언트 관점에서 준다.
 # 여기서는 병목의 "위치"를 보기 위한 서버측 메트릭만 연다.
 management:
+  # 관측 엔드포인트를 앱(8080)과 다른 포트로 분리한다.
+  # 앱 워커 풀이 포화돼도 관리 커넥터는 별도 스레드 풀이라 스크레이프가 살아있다.
+  server:
+    port: 8081
   endpoints:
     web:
       exposure:

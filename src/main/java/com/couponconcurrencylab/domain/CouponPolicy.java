@@ -71,6 +71,15 @@ public class CouponPolicy {
         stockQuantity--;
     }
 
+    /** 재고를 1 되돌린다. */
+    public void increaseStock() {
+        stockQuantity++;
+    }
+
+    public void outStock() {
+        this.stockQuantity = 0;
+    }
+
     /** 원래 가격에 이 정책의 할인을 적용한 최종 가격(0 미만이면 0). */
     public int applyDiscount(int originalPrice) {
         int discounted = switch (discountType) {

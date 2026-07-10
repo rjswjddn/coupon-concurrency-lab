@@ -5,54 +5,62 @@ import com.couponconcurrencylab.domain.IssuedCoupon;
 import com.couponconcurrencylab.infrastructure.persistence.CouponPolicyRepository;
 import com.couponconcurrencylab.infrastructure.persistence.IssuedCouponRepository;
 import java.time.LocalDateTime;
+import java.util.concurrent.locks.ReentrantLock;
+
+import com.github.benmanes.caffeine.cache.Cache;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.hibernate.exception.ConstraintViolationException;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CouponIssueService {
 
     private final CouponPolicyRepository couponPolicyRepository;
     private final IssuedCouponRepository issuedCouponRepository;
+    private final Cache<Long, ReentrantLock> issueLocks;
+    private final Cache<Long, CouponPolicy> policyCache;
+    private final CouponIssueProcessor processor;
 
     /**
-     *  쿠폰 발급 비즈니스 로직
-     *  1. 쿠폰 정책 조회 및 검증
-     *  2. 쿠폰 발급 기간 검증
-     *  3. 쿠폰 중복 발금 검증
-     *  4. 쿠폰 재고 검증 및 차감
-     *  5. 발급 쿠폰 저장
+     * 쿠폰 정책을 검증하고, 재고를 확보한 뒤, 쿠폰을 발급한다.
      */
-    @Transactional
     public IssuedCoupon issue(Long policyId, Long memberId) {
-        CouponPolicy policy = couponPolicyRepository.findByIdWithLock(policyId)
-                .orElseThrow(() -> new IllegalArgumentException("쿠폰 정책이 없습니다. policyId=" + policyId));
+        CouponPolicy policy = policyCache.get(policyId, processor::loadPolicy);
 
-        LocalDateTime now = LocalDateTime.now();
-        if (!policy.isWithinIssuePeriod(now)) {
+        if (!policy.isWithinIssuePeriod(LocalDateTime.now())) {
             throw new IllegalStateException("발급 기간이 아닙니다. policyId=" + policyId);
         }
 
-        if (issuedCouponRepository.existsByCouponPolicyIdAndMemberId(policyId, memberId)) {
-            throw new IllegalStateException("이미 쿠폰을 발급 받았습니다. policyId=" + policyId + ", memberId=" + memberId);
-        }
-
-        log.info("@@@@@@@@@@@@@@@@@@@@@ 남은 재고 : {}", policy.getStockQuantity());
-        policy.decreaseStock();
-        log.info("@@@@@@@@@@@@@@@@@@@@@ 차감한 재고 : {}", policy.getStockQuantity());
-        couponPolicyRepository.save(policy);
-
-        IssuedCoupon issued = IssuedCoupon.issue(memberId, policyId, now);
-
+        int remaining = reserveStock(policy);
         try {
-            return issuedCouponRepository.save(issued);
-        } catch (DataIntegrityViolationException dve) {
-            throw new IllegalStateException("이미 쿠폰을 발급 받았습니다. policyId=" + policyId + ", memberId=" + memberId + "\n" + dve.getMessage(), dve);
+            return processor.saveIssued(policyId, memberId, remaining == 0);
+        } catch (RuntimeException e) {
+            restoreStock(policy);
+            throw e;
+        }
+    }
+
+    /** 재고를 1 확보하고 남은 재고를 반환한다. 남은 재고가 없으면 예외. */
+    private int reserveStock(CouponPolicy policy) {
+        ReentrantLock lock = issueLocks.get(policy.getId(), key -> new ReentrantLock());
+        lock.lock();
+        try {
+            policy.decreaseStock();
+            return policy.getStockQuantity();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** 확보했던 재고를 1 되돌린다. */
+    private void restoreStock(CouponPolicy policy) {
+        ReentrantLock lock = issueLocks.get(policy.getId(), key -> new ReentrantLock());
+        lock.lock();
+        try {
+            policy.increaseStock();
+        } finally {
+            lock.unlock();
         }
     }
 

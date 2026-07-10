@@ -1,0 +1,15 @@
+# jar 전송 배포 override.
+# 서버에서 gradle 빌드를 하지 않고, 로컬에서 빌드한 app.jar 를 JRE 이미지에 마운트해 실행한다.
+#
+# 최초/재배포:
+#   1) 로컬:  ./gradlew clean bootJar -x test
+#   2) 전송:  scp -P 4378 build/libs/*-SNAPSHOT.jar gw4378@www.booral.art:~/coupon-concurrency-lab/app.jar
+#   3) 서버:  docker compose -f docker-compose.deploy.yml -f docker-compose.jar.yml up -d --force-recreate app
+services:
+  app:
+    build: !reset null          # gradle 빌드 스테이지 제거 — 이미지 빌드 없이 실행만 한다
+    image: eclipse-temurin:21-jre
+    working_dir: /app
+    volumes:
+      - ./app.jar:/app/app.jar:ro
+    entrypoint: ["java", "-jar", "/app/app.jar"]

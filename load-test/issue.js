@@ -1,22 +1,23 @@
 import http from 'k6/http';
 import { Counter } from 'k6/metrics';
+import exec from 'k6/execution';
 
 // ═══════════════════════════════════════════════════════════════
 //  설정 — 여기 값만 바꾸면 된다
 // ═══════════════════════════════════════════════════════════════
 
 // 서버 주소
-const BASE = 'http://localhost:8080';
+const BASE = 'http://localhost:8090';
 
 // 동시에 발급을 요청할 유저 수 (각 유저가 한 번씩 요청)
-const USER_COUNT = 100;
+const USER_COUNT = 10000;
 
 // 이번 실행에서 만들 정책
 const POLICY = {
   name: 'load-test-coupon',
   discountType: 'AMOUNT', // 'AMOUNT' | 'RATE'
   discountValue: 1000,
-  totalQuantity: 10, // 선착순 수량(재고)
+  totalQuantity: 10000, // 선착순 수량(재고)
   issueStartAt: '2000-01-01T00:00:00', // 넓게 열어 기간 검증이 끼어들지 않게
   issueEndAt: '2999-12-31T23:59:59',
   onePerMember: false, // 한 명이 한 장만 받을 수 있는지
@@ -74,8 +75,8 @@ export function setup() {
 }
 
 export default function (data) {
-  // VU 하나 = 유저 하나. 각자 자기 멤버로 한 번 발급 요청.
-  const memberId = data.memberIds[(__VU - 1) % data.memberIds.length];
+  // iteration 하나 = 유저 하나. 어느 VU가 돌든 요청마다 서로 다른 멤버를 쓴다.
+  const memberId = data.memberIds[exec.scenario.iterationInTest % data.memberIds.length];
   const res = http.post(
     `${BASE}/api/coupon-policies/${data.policyId}/issues`,
     JSON.stringify({ memberId }),

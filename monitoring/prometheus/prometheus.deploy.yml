@@ -9,7 +9,7 @@ scrape_configs:
   - job_name: 'coupon-app'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['app:8080']
+      - targets: ['app:8081']   # 관리 포트(8080=앱 트래픽과 분리)
 
   - job_name: 'mysqld'
     static_configs:

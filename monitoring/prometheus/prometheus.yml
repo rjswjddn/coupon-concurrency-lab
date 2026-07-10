@@ -10,7 +10,7 @@ scrape_configs:
   - job_name: 'coupon-app'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['host.docker.internal:8080']
+      - targets: ['host.docker.internal:8081']   # 관리 포트(8080=앱 트래픽과 분리)
 
   # MySQL 서버측 지표(threads_running, innodb row lock 등)
   - job_name: 'mysqld'

@@ -10,6 +10,7 @@ services:
     container_name: coupon-app
     ports:
       - "8090:8080"
+      - "8091:8081"   # 관리/actuator 포트(앱 트래픽과 분리)
     environment:
       # 컨테이너 기본 TZ가 UTC라 JVM의 LocalDateTime.now()가 UTC로 흐른다.
       # 발급 기간을 KST 벽시계로 입력하면 9시간 어긋나 "발급 기간 아님"이 뜬다 → KST로 고정.
